@@ -61,6 +61,23 @@ func GetPeople(response http.ResponseWriter, request *http.Request) {
 	json.NewEncoder(response).Encode(people)
 }
 
+// GetPerson func
+func GetPerson(response http.ResponseWriter, request *http.Request) {
+	response.Header().Add("content-type", "application/json")
+	params := mux.Vars(request)
+	id, _ := primitive.ObjectIDFromHex(params["id"])
+	var person Person
+	collection := client.Database("monorest").Collection("people")
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	err := collection.FindOne(ctx, Person{ID: id}).Decode(&person)
+	if err != nil {
+		response.WriteHeader(http.StatusInternalServerError)
+		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+		return
+	}
+	json.NewEncoder(response).Encode(person)
+}
+
 func main() {
 	println("Starting the application")
 	client, _ = mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017"))
@@ -70,5 +87,6 @@ func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/person", CreatePerson).Methods("POST")
 	router.HandleFunc("/people", GetPeople).Methods("GET")
+	router.HandleFunc("/person/{id}", GetPerson).Methods("GET")
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
